@@ -3,7 +3,24 @@ const $=id=>document.getElementById(id);
 const VERSION='chinese-clip-q8-v1';
 let photos=[],results=null,selected=new Set(),busy=false,stop=false,page=80,worker,seq=0,pending=new Map(),db,storageWarning=false,backend='尚未啟動 AI';
 let categoryPlan=null;
-const AUTO_CATEGORIES=['人物合照','自然風景','美食餐點','動物寵物','建築街景','文件截圖','衣服服飾','鞋子','布料紋理','包袋配件','產品零件細節','設計圖插畫','花卉植物','交通工具','室內空間','運動活動'];
+// Product names follow https://www.paiho.com/tw/ . Descriptions guide similarity; they are not material verification.
+const AUTO_CATEGORIES=[
+ {name:'射出勾',prompt:'射出勾產品特寫，塑膠薄片表面排列細小的鉤子，用來扣合的塑膠勾面。'},
+ {name:'粘扣帶',prompt:'粘扣帶魔鬼氈產品特寫，帶狀尼龍勾面與毛圈面，成卷或裁切的黏扣帶。'},
+ {name:'數位梭織緹花布',prompt:'數位梭織緹花布產品特寫，織有彩色圖案與細緻紋理的布料樣片或一片式鞋面。'},
+ {name:'四面彈',prompt:'四面彈布料產品特寫，寬幅針織彈性面料，帶網孔紋理的運動鞋內套布料。'},
+ {name:'經編針織緹花網布',prompt:'經編針織緹花網布產品特寫，具有開孔網眼與針織花紋的網狀布料樣片。'},
+ {name:'鬆緊帶',prompt:'鬆緊帶產品特寫，窄幅扁平的彈性帶，衣物腰帶或帶字樣的彈力織帶。'},
+ {name:'織帶',prompt:'織帶產品特寫，窄長扁平的編織帶，織有條紋與紋理的彩色帶子或帶卷。'},
+ {name:'鞋帶｜拉繩',prompt:'鞋帶或拉繩產品特寫，編織的圓繩或扁繩，細長的鞋帶、抽繩與繩圈。'},
+ {name:'束頭',prompt:'束頭產品特寫，鞋帶或繩子末端的小型金屬或塑膠套管、繩頭配件。'},
+ {name:'反光材料',prompt:'反光材料產品特寫，反光膜、反光條與彩虹薄膜，銀色或彩色閃亮表面的材料樣片。'},
+ {name:'保溫材料',prompt:'保溫材料產品特寫，蓬鬆纖維棉片、保暖填充層與薄片狀絮棉材料。'},
+ {name:'紗線',prompt:'紗線產品特寫，纏在筒管上的細紗、線軸、紗筒與成束的纖維線。'},
+ {name:'非產品照片',prompt:'人物合照、旅遊風景、動物或美食的生活照片。',reject:true},
+ {name:'文件畫面',prompt:'文件表格、電腦螢幕截圖或辦公簡報畫面。',reject:true},
+ {name:'成品展示',prompt:'完整的鞋子、衣服或包包成品展示，穿著服飾鞋子的模特兒。',reject:true}
+];
 const setStatus=(s,error=false)=>{$('status').textContent=s;$('status').classList.toggle('error',error)};
 const dbReady=new Promise(resolve=>{const r=indexedDB.open('shiguang-local',1);r.onupgradeneeded=()=>{r.result.createObjectStore('vectors');r.result.createObjectStore('settings')};r.onsuccess=()=>{db=r.result;resolve()};r.onerror=()=>{storageWarning=true;resolve()};r.onblocked=()=>resolve()});
 async function read(store,key){await dbReady;if(!db)return;return new Promise(resolve=>{const r=db.transaction(store).objectStore(store).get(key);r.onsuccess=()=>resolve(r.result);r.onerror=()=>resolve()})}
@@ -101,10 +118,11 @@ async function autoCategorize(){
  try{
   const categories=[];
   for(let i=0;i<names.length;i++){
-   $('categoryStatus').textContent='正在準備分類 '+(i+1)+' / '+names.length+'：'+names[i];
-   const key=VERSION+':category:'+names[i];let vec=await read('vectors',key);
-   if(!vec){vec=await ai('text',{text:'這是一張'+names[i]+'的照片'});await write('vectors',key,vec)}
-   categories.push({name:names[i],vector:vec});
+   const definition=names[i];
+   $('categoryStatus').textContent='正在準備百和產品分類 '+(i+1)+' / '+names.length+'：'+definition.name;
+   const key=VERSION+':paiho-v1:'+definition.prompt;let vec=await read('vectors',key);
+   if(!vec){vec=await ai('text',{text:definition.prompt});await write('vectors',key,vec)}
+   categories.push({...definition,vector:vec});
   }
   const plan=new Map();
   for(const p of photos){const name=p.vector?chooseCategory(p.vector,categories):'未能分析';if(!plan.has(name))plan.set(name,[]);plan.get(name).push(p)}

@@ -1,6 +1,6 @@
 export function chooseCategory(vector, categories, minimum=.22, margin=.025){
- const ranked=categories.map(c=>({name:c.name,score:vector.reduce((sum,x,i)=>sum+x*c.vector[i],0)})).sort((a,b)=>b.score-a.score);
- if(!ranked.length||!Number.isFinite(ranked[0].score)||ranked[0].score<minimum||(ranked[1]&&ranked[0].score-ranked[1].score<margin))return '待確認';
+ const ranked=categories.map(c=>({name:c.name,reject:c.reject,score:vector.reduce((sum,x,i)=>sum+x*c.vector[i],0)})).sort((a,b)=>b.score-a.score);
+ if(!ranked.length||ranked[0].reject||!Number.isFinite(ranked[0].score)||ranked[0].score<minimum||(ranked[1]&&ranked[0].score-ranked[1].score<margin))return '待確認';
  return ranked[0].name;
 }
 export function parseCategories(text){
